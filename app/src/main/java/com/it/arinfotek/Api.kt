@@ -6,8 +6,8 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-// Emulator + "adb reverse" tunnel (setup_tunnel.bat) -> your PC server
-const val BASE_URL = "http://localhost:5000"
+// Live Vercel backend URL
+const val BASE_URL = "https://arinfotek-node-backend.vercel.app"
 
 // Remembers who is logged in (kept in memory only)
 object Session {
@@ -50,7 +50,7 @@ suspend fun api(method: String, path: String, json: JSONObject? = null): ApiResu
         ApiResult(error = serverError(body, code))
     }
 } catch (e: Exception) {
-    ApiResult(error = "Cannot connect to the server. Please check the server and tunnel. (${e.javaClass.simpleName})")
+    ApiResult(error = "Cannot connect to the server. Please check your internet connection. (${e.javaClass.simpleName})")
 }
 
 // Registration: returns null on success, or an error message
@@ -65,3 +65,18 @@ suspend fun sendLogin(username: String, password: String): LoginResult {
     Session.name = j.optString("name")
     return LoginResult(name = Session.name.ifEmpty { "User" })
 }
+
+// Forgot Password - Step 1: Send 6-digit OTP to registered email
+suspend fun sendForgotPasswordOtp(email: String): ApiResult =
+    api("POST", "/forgot-password", JSONObject().put("email", email.trim()))
+
+// Forgot Password - Step 2: Verify OTP and update new password
+suspend fun resetPasswordWithOtp(email: String, otp: String, newPassword: String): ApiResult =
+    api(
+        "POST",
+        "/reset-password",
+        JSONObject()
+            .put("email", email.trim())
+            .put("otp", otp.trim())
+            .put("new_password", newPassword)
+    )

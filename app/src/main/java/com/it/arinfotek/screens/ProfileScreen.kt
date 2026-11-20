@@ -36,6 +36,7 @@ import java.io.ByteArrayOutputStream
 
 private val PNavy = Color(0xFF0C1F3F)
 private val PBorder = Color(0xFFD5DEEA)
+private const val MAX_FILE_BYTES = 200 * 1024 // 200 KB
 private val activityOptions = listOf(
     "Studying", "Learning at AR INFOTEK", "Doing an internship", "Looking for a job", "Working"
 )
@@ -79,7 +80,7 @@ private fun encodePhoto(ctx: Context, uri: Uri): String? {
 
 private class PickedFile(val name: String, val b64: String?)
 
-// Picked file -> base64 (max 5 MB)
+// Picked file -> base64 (max 200 KB)
 private fun readPickedFile(ctx: Context, uri: Uri): PickedFile? {
     return try {
         var name = "file"
@@ -92,9 +93,9 @@ private fun readPickedFile(ctx: Context, uri: Uri): PickedFile? {
                 if (si >= 0) size = c.getLong(si)
             }
         }
-        if (size > 5_000_000) return PickedFile(name, null)
+        if (size > MAX_FILE_BYTES) return PickedFile(name, null)
         val bytes = ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        if (bytes == null || bytes.size > 5_000_000) PickedFile(name, null)
+        if (bytes == null || bytes.size > MAX_FILE_BYTES) PickedFile(name, null)
         else PickedFile(name, Base64.encodeToString(bytes, Base64.NO_WRAP))
     } catch (e: Exception) {
         null
@@ -184,7 +185,7 @@ fun ProfileScreen(go: (Screen) -> Unit) {
             busy = true
             val f = withContext(Dispatchers.IO) { readPickedFile(ctx, uri) }
             if (f == null || f.b64 == null) {
-                dialog = "Could not read this file. It must be under 5 MB."
+                dialog = "File size must be under 200 KB."
             } else {
                 val r = api("POST", "/profile/files", JSONObject().put("file_name", f.name).put("data", f.b64))
                 if (r.error != null) dialog = r.error else { dialog = "File uploaded."; load() }
@@ -376,7 +377,7 @@ fun ProfileScreen(go: (Screen) -> Unit) {
                     }
                 }
                 Gap(12)
-                OutlineBtn(if (busy) "Please wait..." else "Upload file (PDF / image / doc, max 5 MB)",
+                OutlineBtn(if (busy) "Please wait..." else "Upload file (PDF / image / doc, max 200 KB)",
                     Modifier.fillMaxWidth(), s = 13) { if (!busy) filePicker.launch("*/*") }
             }
             Gap(16)
